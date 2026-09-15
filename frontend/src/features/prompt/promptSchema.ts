@@ -1,10 +1,7 @@
 import { z } from "zod";
 
 export const promptSchema = z.object({
-  prompt: z
-    .string()
-    .trim()
-    .min(5, "Prompt must be at least 5 characters"),
+  prompt: z.string().trim().min(1, "Prompt is required"),
 
   targetLanguage: z
     .string()

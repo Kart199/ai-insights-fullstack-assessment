@@ -8,21 +8,23 @@ import type {
 export const insightsApi = createApi({
   reducerPath: "insightsApi",
 
-  baseQuery: fetchBaseQuery({
-    baseUrl: "http://localhost:8000/api",
-  }),
-
+ baseQuery: fetchBaseQuery({
+  baseUrl: import.meta.env.VITE_API_URL,
+}),
   endpoints: (builder) => ({
-    submitPrompt: builder.mutation<
-      InsightsResponse,
-      PromptRequest
-    >({
-      query: (body) => ({
-        url: "/insights",
-        method: "POST",
-        body,
-      }),
-    }),
+  submitPrompt: builder.mutation<
+  InsightsResponse,
+  PromptRequest & {
+    page?: number;
+    pageSize?: number;
+  }
+>({
+  query: ({ page = 1, pageSize = 10, ...body }) => ({
+    url: `/insights?page=${page}&pageSize=${pageSize}`,
+    method: "POST",
+    body,
+  }),
+}),
   }),
 });
 
