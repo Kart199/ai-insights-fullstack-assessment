@@ -1,6 +1,9 @@
-from fastapi import APIRouter, HTTPException, Query
+from uuid import uuid4
 
-from .schemas import PromptRequest, SUPPORTED_LANGUAGES
+from fastapi import APIRouter, Query
+
+from .errors import ApiError
+from .schemas import MIN_PROMPT_LENGTH, SUPPORTED_LANGUAGES, PromptRequest
 from .services import generate_insights
 
 router = APIRouter()
@@ -14,42 +17,32 @@ def create_insights(
 ):
     prompt = request.prompt.strip()
     target_language = request.targetLanguage.strip().lower()
+    context_id = str(request.contextId or uuid4())
 
     if not prompt:
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "error": "INVALID_PROMPT",
-                "message": "Prompt is required",
-            },
-        )
+        raise ApiError("INVALID_PROMPT", "Prompt is required")
 
     if target_language not in SUPPORTED_LANGUAGES:
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "error": "INVALID_LANGUAGE",
-                "message": "Target language is not supported",
-            },
-        )
+        raise ApiError("INVALID_LANGUAGE", "Target language is not supported")
 
-    if len(prompt) < 5:
+    # Decided before any downstream (AI) call.
+    if len(prompt) < MIN_PROMPT_LENGTH:
         return {
             "status": "NEEDS_CLARIFICATION",
             "message": "Please provide more details",
+            "contextId": context_id,
             "insights": [],
         }
 
-    insights = generate_insights(prompt)
+    insights = generate_insights(prompt, target_language)
 
     start = (page - 1) * pageSize
     end = start + pageSize
 
-    paginated_insights = insights[start:end]
-
     return {
         "status": "SUCCESS",
-        "insights": paginated_insights,
+        "contextId": context_id,
+        "insights": insights[start:end],
         "pagination": {
             "page": page,
             "pageSize": pageSize,

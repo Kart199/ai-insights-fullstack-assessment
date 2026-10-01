@@ -11,6 +11,7 @@ export interface Insight {
   metadata: {
     category: string;
     source: string;
+    language?: string;
   };
 }
 
@@ -24,6 +25,13 @@ export interface Pagination {
 export interface InsightsResponse {
   status: "SUCCESS" | "NEEDS_CLARIFICATION";
   message?: string;
+  contextId?: string;
   insights: Insight[];
   pagination?: Pagination;
+}
+
+/** Structured error shape returned by the backend for 4xx responses. */
+export interface ApiError {
+  code: string;
+  message: string;
 }

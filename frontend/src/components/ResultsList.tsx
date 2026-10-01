@@ -1,75 +1,71 @@
-import { useMemo, useState } from "react";
-import type { Insight } from "../types/insight";
+import { memo, useMemo, useState } from "react";
+
 import useDebounce from "../hooks/useDebounce";
+import type { Insight } from "../types/insight";
+import InsightCard from "./InsightCard";
+
+type SortOrder = "asc" | "desc";
 
 interface ResultsListProps {
   insights: Insight[];
+  /** Total number of insights on the server (across all pages). */
+  total: number;
 }
 
-function ResultsList({ insights }: ResultsListProps) {
+const matches = (insight: Insight, term: string) =>
+  [
+    insight.title,
+    insight.text,
+    insight.metadata.category,
+    insight.metadata.source,
+  ].some((value) => value.toLowerCase().includes(term));
+
+function ResultsList({ insights, total }: ResultsListProps) {
   const [search, setSearch] = useState("");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
 
   const debouncedSearch = useDebounce(search, 300);
 
-  const filteredAndSortedInsights = useMemo(() => {
-    const searchTerm = debouncedSearch.toLowerCase().trim();
+  const visibleInsights = useMemo(() => {
+    const term = debouncedSearch.toLowerCase().trim();
+    const filtered = term
+      ? insights.filter((insight) => matches(insight, term))
+      : insights;
 
-    const filtered = insights.filter((insight) => {
-      return (
-        insight.title.toLowerCase().includes(searchTerm) ||
-        insight.text.toLowerCase().includes(searchTerm) ||
-        insight.metadata.category
-          .toLowerCase()
-          .includes(searchTerm) ||
-        insight.metadata.source
-          .toLowerCase()
-          .includes(searchTerm)
-      );
-    });
+    const direction = sortOrder === "asc" ? 1 : -1;
 
-    return [...filtered].sort((a, b) => {
-      const comparison = a.title.localeCompare(b.title);
-
-      return sortOrder === "asc"
-        ? comparison
-        : -comparison;
-    });
+    return [...filtered].sort(
+      (a, b) =>
+        direction *
+        a.title.localeCompare(b.title, undefined, { numeric: true }),
+    );
   }, [insights, debouncedSearch, sortOrder]);
-
-  if (insights.length === 0) {
-    return <p>No insights found.</p>;
-  }
 
   return (
     <section className="results">
       <div className="results-header">
         <div>
           <h2>Insights</h2>
-
           <p>
-            Showing {filteredAndSortedInsights.length} of{" "}
-            {insights.length} insights
+            Showing {visibleInsights.length} of {insights.length} loaded
+            {total > insights.length && ` (${total} total)`}. Search and sort
+            apply to loaded results.
           </p>
         </div>
 
         <div className="results-controls">
           <input
-            type="text"
+            type="search"
+            aria-label="Search insights"
             placeholder="Search insights..."
             value={search}
-            onChange={(event) =>
-              setSearch(event.target.value)
-            }
+            onChange={(e) => setSearch(e.target.value)}
           />
 
           <select
+            aria-label="Sort order"
             value={sortOrder}
-            onChange={(event) =>
-              setSortOrder(
-                event.target.value as "asc" | "desc"
-              )
-            }
+            onChange={(e) => setSortOrder(e.target.value as SortOrder)}
           >
             <option value="asc">A-Z</option>
             <option value="desc">Z-A</option>
@@ -77,29 +73,12 @@ function ResultsList({ insights }: ResultsListProps) {
         </div>
       </div>
 
-      {filteredAndSortedInsights.length === 0 ? (
+      {visibleInsights.length === 0 ? (
         <p>No matching insights found.</p>
       ) : (
         <div className="insights">
-          {filteredAndSortedInsights.map((insight) => (
-            <article
-              className="insight-card"
-              key={insight.id}
-            >
-              <h3>{insight.title}</h3>
-
-              <p>{insight.text}</p>
-
-              <div className="metadata">
-                <span>
-                  Category: {insight.metadata.category}
-                </span>
-
-                <span>
-                  Source: {insight.metadata.source}
-                </span>
-              </div>
-            </article>
+          {visibleInsights.map((insight) => (
+            <InsightCard key={insight.id} insight={insight} />
           ))}
         </div>
       )}
@@ -107,4 +86,4 @@ function ResultsList({ insights }: ResultsListProps) {
   );
 }
 
-export default ResultsList;
+export default memo(ResultsList);

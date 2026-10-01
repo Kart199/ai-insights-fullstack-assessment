@@ -55,41 +55,29 @@ The application allows users to submit a prompt and target language, receive AI-
 
 ```text
 ai-insights-fullstack-assessment/
-│
 ├── backend/
-│   └── app/
-│       ├── main.py
-│       ├── routes.py
-│       ├── schemas.py
-│       └── services.py
-│
-├── frontend/
-│   ├── src/
-│   │   ├── api/
-│   │   │   └── insightsApi.ts
-│   │   │
-│   │   ├── app/
-│   │   │   └── store.ts
-│   │   │
-│   │   ├── components/
-│   │   │   ├── PromptForm.tsx
-│   │   │   └── ResultsList.tsx
-│   │   │
-│   │   ├── features/
-│   │   │   ├── insights/
-│   │   │   │   └── insightsSlice.ts
-│   │   │   └── prompt/
-│   │   │       └── promptSchema.ts
-│   │   │
-│   │   ├── hooks/
-│   │   │   └── useDebounce.ts
-│   │   │
-│   │   └── types/
-│   │       └── insight.ts
-│   │
-│   └── package.json
-│
-└── README.md
+│   ├── app/
+│   │   ├── main.py        # app, CORS, router, error handlers
+│   │   ├── errors.py      # ApiError + flat {error, message} handlers
+│   │   ├── routes.py      # POST /api/insights
+│   │   ├── schemas.py     # request model, supported languages
+│   │   └── services.py    # dummy AI service
+│   ├── tests/
+│   ├── requirements.txt
+│   └── requirements-dev.txt
+└── frontend/src/
+    ├── api/insightsApi.ts            # RTK Query endpoint (API logic only)
+    ├── app/                          # store + typed hooks
+    ├── components/
+    │   ├── PromptForm.tsx            # form + validation + submit
+    │   ├── ResultsSection.tsx        # error / clarification / results / load more
+    │   ├── ResultsList.tsx           # search + sort (memoized)
+    │   └── InsightCard.tsx           # memoized card
+    ├── constants/languages.ts        # single source for language options
+    ├── features/insights/            # slice: request, results, pagination, error
+    ├── features/prompt/promptSchema.ts
+    ├── hooks/useDebounce.ts
+    └── types/insight.ts
 ```
 
 ## Features
@@ -101,7 +89,8 @@ Users can provide:
 * Prompt
 * Target language
 
-The frontend validates the form using Zod before submission.
+The frontend validates the form with Zod (language is an enum of the
+supported codes) and keeps the Submit button disabled until the input is valid.
 
 ### Backend Validation
 
@@ -111,9 +100,9 @@ The FastAPI API validates:
 * Unsupported languages
 * Prompt length/context
 
-Invalid language requests return structured errors.
-
-Example:
+Every 4xx (including malformed bodies, invalid `contextId` and invalid
+`page`/`pageSize`) returns the same flat shape, never FastAPI's default
+`detail` wrapper:
 
 ```json
 {
@@ -184,12 +173,9 @@ Results can be sorted:
 
 `useMemo` is used for filtering and sorting so derived results are recalculated only when the relevant inputs change.
 
-RTK Query provides:
-
-* Request lifecycle handling
-* Loading states
-* Error states
-* Server-state caching
+Components are split by responsibility (`PromptForm`, `ResultsSection`,
+`ResultsList`, `InsightCard`); `ResultsList` and `InsightCard` are wrapped in
+`React.memo`, so typing in the prompt box does not re-render the results.
 
 ## API
 
@@ -243,7 +229,13 @@ Navigate to:
 backend/
 ```
 
-Create/activate the virtual environment and install dependencies.
+Create/activate a virtual environment and install dependencies:
+
+```bash
+pip install -r requirements.txt        # runtime
+pip install -r requirements-dev.txt    # + tests
+pytest
+```
 
 Run:
 
@@ -281,7 +273,11 @@ Run:
 
 ```bash
 npm run dev
+npm test
 ```
+
+The API URL defaults to `http://localhost:8000/api`; override with
+`VITE_API_URL` (see `.env.example`).
 
 Frontend:
 
@@ -293,9 +289,19 @@ http://localhost:5173
 
 ### Why RTK Query?
 
-RTK Query was chosen to manage server state and API lifecycle while providing caching, loading, and error handling.
+RTK Query owns the API layer (base URL, request shaping, lifecycle actions),
+keeping network logic out of components.
 
-It also keeps API logic separate from UI components.
+The endpoint is a **mutation**, not a query: it is a `POST` to an AI service
+where each call can be non-idempotent and the response is a conversation step,
+so RTK Query's argument-keyed cache is not a good fit. Results, pagination,
+loading and error state are instead kept in the `insights` slice, which listens
+to the endpoint's `pending/fulfilled/rejected` actions. The slice also drops
+stale responses (e.g. a "Load more" that returns after a new prompt was
+submitted).
+
+"Load more" always paginates the request stored in Redux, not the current form
+contents.
 
 ### Why backend pagination?
 
@@ -329,7 +335,7 @@ The dummy AI service can later be replaced with a real LLM integration without r
 | Requirement              | Status    |
 | ------------------------ | --------- |
 | React frontend           | Completed |
-| TypeScript               | Completed |
+| TypeScript (brief says JavaScript; TS is a superset) | Completed |
 | Form validation          | Completed |
 | Prompt submission        | Completed |
 | Target language          | Completed |

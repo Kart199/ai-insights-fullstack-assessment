@@ -1,4 +1,5 @@
 import PromptForm from "./components/PromptForm";
+import ResultsSection from "./components/ResultsSection";
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
         </header>
 
         <PromptForm />
+        <ResultsSection />
       </section>
     </main>
   );
