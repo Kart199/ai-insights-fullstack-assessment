@@ -29,8 +29,7 @@ function ResultsList({ insights }: ResultsListProps) {
     });
 
     return [...filtered].sort((a, b) => {
-      const comparison =
-        Number(a.id) - Number(b.id);
+      const comparison = a.title.localeCompare(b.title);
 
       return sortOrder === "asc"
         ? comparison
@@ -78,28 +77,32 @@ function ResultsList({ insights }: ResultsListProps) {
         </div>
       </div>
 
-      <div className="insights">
-        {filteredAndSortedInsights.map((insight) => (
-          <article
-            className="insight-card"
-            key={insight.id}
-          >
-            <h3>{insight.title}</h3>
+      {filteredAndSortedInsights.length === 0 ? (
+        <p>No matching insights found.</p>
+      ) : (
+        <div className="insights">
+          {filteredAndSortedInsights.map((insight) => (
+            <article
+              className="insight-card"
+              key={insight.id}
+            >
+              <h3>{insight.title}</h3>
 
-            <p>{insight.text}</p>
+              <p>{insight.text}</p>
 
-            <div className="metadata">
-              <span>
-                Category: {insight.metadata.category}
-              </span>
+              <div className="metadata">
+                <span>
+                  Category: {insight.metadata.category}
+                </span>
 
-              <span>
-                Source: {insight.metadata.source}
-              </span>
-            </div>
-          </article>
-        ))}
-      </div>
+                <span>
+                  Source: {insight.metadata.source}
+                </span>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
     </section>
   );
 }

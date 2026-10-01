@@ -1,5 +1,4 @@
-from fastapi import APIRouter
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, HTTPException, Query
 
 from .schemas import PromptRequest, SUPPORTED_LANGUAGES
 from .services import generate_insights
@@ -8,39 +7,40 @@ router = APIRouter()
 
 
 @router.post("/insights")
-def create_insights(request: PromptRequest, page: int = 1, pageSize: int = 10):
-
+def create_insights(
+    request: PromptRequest,
+    page: int = Query(1, ge=1),
+    pageSize: int = Query(10, ge=1, le=100),
+):
     prompt = request.prompt.strip()
+    target_language = request.targetLanguage.strip().lower()
 
     if not prompt:
-        return JSONResponse(
+        raise HTTPException(
             status_code=400,
-            content={
+            detail={
                 "error": "INVALID_PROMPT",
-                "message": "Prompt cannot be empty"
-            }
+                "message": "Prompt is required",
+            },
         )
 
-    if request.targetLanguage not in SUPPORTED_LANGUAGES:
-        return JSONResponse(
+    if target_language not in SUPPORTED_LANGUAGES:
+        raise HTTPException(
             status_code=400,
-            content={
+            detail={
                 "error": "INVALID_LANGUAGE",
-                "message": "Target language is not supported"
-            }
+                "message": "Target language is not supported",
+            },
         )
 
     if len(prompt) < 5:
         return {
             "status": "NEEDS_CLARIFICATION",
             "message": "Please provide more details",
-            "insights": []
+            "insights": [],
         }
 
-    insights = generate_insights(
-        prompt,
-        request.targetLanguage
-    )
+    insights = generate_insights(prompt)
 
     start = (page - 1) * pageSize
     end = start + pageSize
@@ -54,6 +54,6 @@ def create_insights(request: PromptRequest, page: int = 1, pageSize: int = 10):
             "page": page,
             "pageSize": pageSize,
             "total": len(insights),
-            "hasNext": end < len(insights)
-        }
+            "hasNext": end < len(insights),
+        },
     }
